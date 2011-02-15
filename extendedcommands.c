@@ -497,11 +497,11 @@ void show_partition_menu()
     typedef char* string;
 
     int i, mountable_volumes, formatable_volumes;
-	int num_volumes;
-	Volume* device_volumes;
+    int num_volumes;
+    Volume* device_volumes;
 
-	num_volumes = get_num_volumes();
-	device_volumes = get_device_volumes();
+    num_volumes = get_num_volumes();
+    device_volumes = get_device_volumes();
 
     string options[255];
 
