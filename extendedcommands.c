@@ -497,7 +497,11 @@ void show_partition_menu()
     typedef char* string;
 
     int i, mountable_volumes, formatable_volumes;
+	int num_volumes;
+	Volume* device_volumes;
 
+	num_volumes = get_num_volumes();
+	device_volumes = get_device_volumes();
 
     string options[255];
 
@@ -539,20 +543,20 @@ void show_partition_menu()
 
 		for (i = 0; i < mountable_volumes; i++)
 		{
-            MountMenuEntry* e = &mount_menue[i];
-            Volume* v = e->v;
-            if(is_path_mounted(v->mount_point))
+			MountMenuEntry* e = &mount_menue[i];
+			Volume* v = e->v;
+			if(is_path_mounted(v->mount_point))
 				options[i] = e->unmount;
 			else
 				options[i] = e->mount;
 		}
 
-        for (i = 0; i < formatable_volumes; i++)
-        {
+		for (i = 0; i < formatable_volumes; i++)
+		{
 			FormatMenuEntry* e = &format_menue[i];
 
 			options[mountable_volumes+i] = e->txt;
-        }
+		}
 
         options[mountable_volumes+formatable_volumes] = "mount USB storage";
         options[mountable_volumes+formatable_volumes + 1] = NULL;
@@ -595,6 +599,10 @@ void show_partition_menu()
                 ui_print("Done.\n");
         }
     }
+
+    free(mount_menue);
+    free(format_menue);
+
 }
 
 #define EXTENDEDCOMMAND_SCRIPT "/cache/recovery/extendedcommand"

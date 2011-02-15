@@ -28,7 +28,16 @@
 #include "common.h"
 #include "make_ext4fs.h"
 
+int num_volumes;
+Volume* device_volumes;
 
+int get_num_volumes() {
+    return num_volumes;
+}
+
+Volume* get_device_volumes() {
+    return device_volumes;
+}
 
 void load_volume_table() {
     int alloc = 2;
