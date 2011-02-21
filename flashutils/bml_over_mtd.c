@@ -32,93 +32,93 @@
 #include "mtdutils.h"
 
 typedef struct BmlOverMtdReadContext {
-    const MtdPartition *partition;
-    char *buffer;
-    size_t consumed;
-    int fd;
+	const MtdPartition *partition;
+	char *buffer;
+	size_t consumed;
+	int fd;
 } BmlOverMtdReadContext;
 
 typedef struct BmlOverMtdWriteContext {
-    const MtdPartition *partition;
-    char *buffer;
-    size_t stored;
-    int fd;
+	const MtdPartition *partition;
+	char *buffer;
+	size_t stored;
+	int fd;
 
-    off_t* bad_block_offsets;
-    int bad_block_alloc;
-    int bad_block_count;
+	off_t* bad_block_offsets;
+	int bad_block_alloc;
+	int bad_block_count;
 } BmlOverMtdWriteContext;
 
 
 static BmlOverMtdReadContext *bml_over_mtd_read_partition(const MtdPartition *partition)
 {
 	BmlOverMtdReadContext *ctx = (BmlOverMtdReadContext*) malloc(sizeof(BmlOverMtdReadContext));
-    if (ctx == NULL) return NULL;
+	if (ctx == NULL) return NULL;
 
-    ctx->buffer = malloc(partition->erase_size);
-    if (ctx->buffer == NULL) {
-        free(ctx);
-        return NULL;
-    }
+	ctx->buffer = malloc(partition->erase_size);
+	if (ctx->buffer == NULL) {
+		free(ctx);
+		return NULL;
+	}
 
-    char mtddevname[32];
-    sprintf(mtddevname, "/dev/mtd/mtd%d", partition->device_index);
-    ctx->fd = open(mtddevname, O_RDONLY);
-    if (ctx->fd < 0) {
-        free(ctx);
-        free(ctx->buffer);
-        return NULL;
-    }
+	char mtddevname[32];
+	sprintf(mtddevname, "/dev/mtd/mtd%d", partition->device_index);
+	ctx->fd = open(mtddevname, O_RDONLY);
+	if (ctx->fd < 0) {
+		free(ctx);
+		free(ctx->buffer);
+		return NULL;
+	}
 
-    ctx->partition = partition;
-    ctx->consumed = partition->erase_size;
-    return ctx;
+	ctx->partition = partition;
+	ctx->consumed = partition->erase_size;
+	return ctx;
 }
 
 static void bml_over_mtd_read_close(BmlOverMtdReadContext *ctx)
 {
-    close(ctx->fd);
-    free(ctx->buffer);
-    free(ctx);
+	close(ctx->fd);
+	free(ctx->buffer);
+	free(ctx);
 }
 
 static BmlOverMtdWriteContext *bml_over_mtd_write_partition(const MtdPartition *partition)
 {
 	BmlOverMtdWriteContext *ctx = (BmlOverMtdWriteContext*) malloc(sizeof(BmlOverMtdWriteContext));
-    if (ctx == NULL) return NULL;
+	if (ctx == NULL) return NULL;
 
-    ctx->bad_block_offsets = NULL;
-    ctx->bad_block_alloc = 0;
-    ctx->bad_block_count = 0;
+	ctx->bad_block_offsets = NULL;
+	ctx->bad_block_alloc = 0;
+	ctx->bad_block_count = 0;
 
-    ctx->buffer = malloc(partition->erase_size);
-    if (ctx->buffer == NULL) {
-        free(ctx);
-        return NULL;
-    }
+	ctx->buffer = malloc(partition->erase_size);
+	if (ctx->buffer == NULL) {
+		free(ctx);
+		return NULL;
+	}
 
-    char mtddevname[32];
-    sprintf(mtddevname, "/dev/mtd/mtd%d", partition->device_index);
-    ctx->fd = open(mtddevname, O_RDWR);
-    if (ctx->fd < 0) {
-        free(ctx->buffer);
-        free(ctx);
-        return NULL;
-    }
+	char mtddevname[32];
+	sprintf(mtddevname, "/dev/mtd/mtd%d", partition->device_index);
+	ctx->fd = open(mtddevname, O_RDWR);
+	if (ctx->fd < 0) {
+		free(ctx->buffer);
+		free(ctx);
+		return NULL;
+	}
 
-    ctx->partition = partition;
-    ctx->stored = 0;
-    return ctx;
+	ctx->partition = partition;
+	ctx->stored = 0;
+	return ctx;
 }
 
 static int bml_over_mtd_write_close(BmlOverMtdWriteContext *ctx)
 {
-    int r = 0;
-    if (close(ctx->fd)) r = -1;
-    free(ctx->bad_block_offsets);
-    free(ctx->buffer);
-    free(ctx);
-    return r;
+	int r = 0;
+	if (close(ctx->fd)) r = -1;
+	free(ctx->bad_block_offsets);
+	free(ctx->buffer);
+	free(ctx);
+	return r;
 }
 
 
@@ -132,73 +132,73 @@ static int bml_over_mtd_write_close(BmlOverMtdWriteContext *ctx)
 #define SPARE_SIZE    (BLOCK_SIZE >> 5)
 
 static int die(const char *msg, ...) {
-    int err = errno;
-    va_list args;
-    va_start(args, msg);
-    char buf[1024];
-    vsnprintf(buf, sizeof(buf), msg, args);
-    va_end(args);
+	int err = errno;
+	va_list args;
+	va_start(args, msg);
+	char buf[1024];
+	vsnprintf(buf, sizeof(buf), msg, args);
+	va_end(args);
 
-    if (err != 0) {
-        strlcat(buf, ": ", sizeof(buf));
-        strlcat(buf, strerror(err), sizeof(buf));
-    }
+	if (err != 0) {
+		strlcat(buf, ": ", sizeof(buf));
+		strlcat(buf, strerror(err), sizeof(buf));
+	}
 
-    fprintf(stderr, "%s\n", buf);
-    return 1;
+	fprintf(stderr, "%s\n", buf);
+	return 1;
 }
 
 static const unsigned short* CreateBlockMapping(const MtdPartition* pSrcPart, int srcPartStartBlock,
 		const MtdPartition *pReservoirPart, int reservoirPartStartBlock)
-{
-    size_t srcTotal, srcErase, srcWrite;
-    if (mtd_partition_info(pSrcPart, &srcTotal, &srcErase, &srcWrite) != 0)
-    {
+		{
+	size_t srcTotal, srcErase, srcWrite;
+	if (mtd_partition_info(pSrcPart, &srcTotal, &srcErase, &srcWrite) != 0)
+	{
 		fprintf(stderr, "Failed to access partition.\n");
-    	return NULL;
-    }
+		return NULL;
+	}
 
-    int numSrcBlocks = srcTotal/srcErase;
+	int numSrcBlocks = srcTotal/srcErase;
 
-    unsigned short* pMapping = malloc(numSrcBlocks * sizeof(unsigned short));
-    if (pMapping == NULL)
-    {
+	unsigned short* pMapping = malloc(numSrcBlocks * sizeof(unsigned short));
+	if (pMapping == NULL)
+	{
 		fprintf(stderr, "Failed to allocate block mapping memory.\n");
-    	return NULL;
-    }
-    memset(pMapping, 0xFF, numSrcBlocks * sizeof(unsigned short));
+		return NULL;
+	}
+	memset(pMapping, 0xFF, numSrcBlocks * sizeof(unsigned short));
 
 	size_t total, erase, write;
-    if (mtd_partition_info(pReservoirPart, &total, &erase, &write) != 0)
-    {
+	if (mtd_partition_info(pReservoirPart, &total, &erase, &write) != 0)
+	{
 		fprintf(stderr, "Failed to access reservoir partition.\n");
-    	free(pMapping);
-    	return NULL;
-    }
+		free(pMapping);
+		return NULL;
+	}
 
-    if (erase != srcErase || write != srcWrite)
-    {
+	if (erase != srcErase || write != srcWrite)
+	{
 		fprintf(stderr, "Source partition and reservoir partition differ in size properties.\n");
-    	free(pMapping);
-    	return NULL;
-    }
+		free(pMapping);
+		return NULL;
+	}
 
-    printf("Partition info: Total %d, Erase %d, write %d\n", total, erase, write);
+	printf("Partition info: Total %d, Erase %d, write %d\n", total, erase, write);
 
-    BmlOverMtdReadContext *readctx = bml_over_mtd_read_partition(pReservoirPart);
-    if (readctx == NULL)
-    {
+	BmlOverMtdReadContext *readctx = bml_over_mtd_read_partition(pReservoirPart);
+	if (readctx == NULL)
+	{
 		fprintf(stderr, "Failed to open reservoir partition for reading.\n");
-    	free(pMapping);
-    	return NULL;
-    }
+		free(pMapping);
+		return NULL;
+	}
 
 	if (total < erase || total > INT_MAX)
 	{
 		fprintf(stderr, "Unsuitable reservoir partition properties.\n");
 		free(pMapping);
 		bml_over_mtd_read_close(readctx);
-    	return NULL;
+		return NULL;
 	}
 
 	int foundMappingTable = 0;
@@ -432,17 +432,17 @@ static int dump_bml_partition(const MtdPartition* pSrcPart, const MtdPartition* 
 		size_t blockBytesRead = 0;
 		while (blockBytesRead < pSrcPart->erase_size)
 		{
-			 ssize_t len = read(srcFd, pSrcRead->buffer + blockBytesRead,
+			ssize_t len = read(srcFd, pSrcRead->buffer + blockBytesRead,
 					pSrcPart->erase_size - blockBytesRead);
-			 if (len <= 0)
-			 {
-					close(fd);
-					bml_over_mtd_read_close(pSrcRead);
-					bml_over_mtd_read_close(pResRead);
-					fprintf(stderr, "dump_bml_partition: reading partition failed\n");
-					return -1;
-			 }
-			 blockBytesRead += len;
+			if (len <= 0)
+			{
+				close(fd);
+				bml_over_mtd_read_close(pSrcRead);
+				bml_over_mtd_read_close(pResRead);
+				fprintf(stderr, "dump_bml_partition: reading partition failed\n");
+				return -1;
+			}
+			blockBytesRead += len;
 		}
 
 		size_t blockBytesWritten = 0;
@@ -477,10 +477,10 @@ static int dump_bml_partition(const MtdPartition* pSrcPart, const MtdPartition* 
 
 static ssize_t bml_over_mtd_write_block(int fd, ssize_t erase_size, char* data)
 {
-    off_t pos = lseek(fd, 0, SEEK_CUR);
-    if (pos == (off_t) -1) return -1;
+	off_t pos = lseek(fd, 0, SEEK_CUR);
+	if (pos == (off_t) -1) return -1;
 
-    ssize_t size = erase_size;
+	ssize_t size = erase_size;
 	loff_t bpos = pos;
 	int ret = ioctl(fd, MEMGETBADBLOCK, &bpos);
 	if (ret != 0 && !(ret == -1 && errno == EOPNOTSUPP)) {
@@ -501,14 +501,14 @@ static ssize_t bml_over_mtd_write_block(int fd, ssize_t erase_size, char* data)
 			continue;
 		}
 		if (lseek(fd, pos, SEEK_SET) != pos ||
-			write(fd, data, size) != size) {
+				write(fd, data, size) != size) {
 			fprintf(stderr, "mtd: write error at 0x%08lx (%s)\n",
 					pos, strerror(errno));
 		}
 
 		char verify[size];
 		if (lseek(fd, pos, SEEK_SET) != pos ||
-			read(fd, verify, size) != size) {
+				read(fd, verify, size) != size) {
 			fprintf(stderr, "mtd: re-read error at 0x%08lx (%s)\n",
 					pos, strerror(errno));
 			continue;
@@ -528,9 +528,9 @@ static ssize_t bml_over_mtd_write_block(int fd, ssize_t erase_size, char* data)
 
 
 	fprintf(stderr, "mtd: Block at %llx could not be properly written.\n", pos);
-    // Ran out of space on the device
-    errno = ENOSPC;
-    return -1;
+	// Ran out of space on the device
+	errno = ENOSPC;
+	return -1;
 }
 
 static int flash_bml_partition(const MtdPartition* pSrcPart, const MtdPartition* pReservoirPart,
@@ -646,20 +646,20 @@ static int flash_bml_partition(const MtdPartition* pSrcPart, const MtdPartition*
 		while (blockBytesWritten < pSrcPart->erase_size)
 		{
 #ifdef DUMMY_WRITING
-			 ssize_t len = write(srcFd, pSrcWrite->buffer + blockBytesWritten,
+			ssize_t len = write(srcFd, pSrcWrite->buffer + blockBytesWritten,
 					pSrcPart->erase_size - blockBytesWritten);
 #else
-			 ssize_t len = bml_over_mtd_write_block(srcFd, pSrcPart->erase_size, pSrcWrite->buffer);
+			ssize_t len = bml_over_mtd_write_block(srcFd, pSrcPart->erase_size, pSrcWrite->buffer);
 #endif
-			 if (len <= 0)
-			 {
-					close(fd);
-					bml_over_mtd_write_close(pSrcWrite);
-					bml_over_mtd_write_close(pResWrite);
-					fprintf(stderr, "flash_bml_partition: writing to partition failed\n");
-					return -1;
-			 }
-			 blockBytesWritten += len;
+			if (len <= 0)
+			{
+				close(fd);
+				bml_over_mtd_write_close(pSrcWrite);
+				bml_over_mtd_write_close(pResWrite);
+				fprintf(stderr, "flash_bml_partition: writing to partition failed\n");
+				return -1;
+			}
+			blockBytesWritten += len;
 		}
 
 
@@ -711,55 +711,55 @@ static int scan_partition(const MtdPartition* pPart)
 
 int main(int argc, char **argv)
 {
-    if (argc != 7 && (argc != 3 || (argc == 3 && strcmp(argv[1],"scan"))!=0)
-    		&& (argc != 6 || (argc == 6 && strcmp(argv[1],"scan"))!=0))
-        return die("Usage: %s dump|flash <partition> <partition_start_block> <reservoirpartition> <reservoir_start_block> <file>\n"
-        		"E.g. %s dump boot 72 reservoir 2004 file.bin\n"
-        		"Usage: %s scan <partition> [<partition_start_block> <reservoirpartition> <reservoir_start_block>]\n"
-        		,argv[0], argv[0], argv[0]);
-    int num_partitions = mtd_scan_partitions();
-    const MtdPartition *pSrcPart = mtd_find_partition_by_name(argv[2]);
-    if (pSrcPart == NULL)
-    	return die("Cannot find partition %s", argv[2]);
+	if (argc != 7 && (argc != 3 || (argc == 3 && strcmp(argv[1],"scan"))!=0)
+			&& (argc != 6 || (argc == 6 && strcmp(argv[1],"scan"))!=0))
+		return die("Usage: %s dump|flash <partition> <partition_start_block> <reservoirpartition> <reservoir_start_block> <file>\n"
+				"E.g. %s dump boot 72 reservoir 2004 file.bin\n"
+				"Usage: %s scan <partition> [<partition_start_block> <reservoirpartition> <reservoir_start_block>]\n"
+				,argv[0], argv[0], argv[0]);
+	int num_partitions = mtd_scan_partitions();
+	const MtdPartition *pSrcPart = mtd_find_partition_by_name(argv[2]);
+	if (pSrcPart == NULL)
+		return die("Cannot find partition %s", argv[2]);
 
-    if (argc == 3 && strcmp(argv[1],"scan")==0)
-    {
-    	return scan_partition(pSrcPart);
-    }
+	if (argc == 3 && strcmp(argv[1],"scan")==0)
+	{
+		return scan_partition(pSrcPart);
+	}
 
-    int retVal = 0;
-    const MtdPartition* pReservoirPart = mtd_find_partition_by_name(argv[4]);
-    if (pReservoirPart == NULL)
-    	return die("Cannot find partition %s", argv[4]);
-    int srcPartStartBlock = atoi(argv[3]);
-    int reservoirPartStartBlock = atoi(argv[5]);
-    const unsigned short* pMapping = CreateBlockMapping(pSrcPart, srcPartStartBlock,
-    		pReservoirPart, reservoirPartStartBlock);
+	int retVal = 0;
+	const MtdPartition* pReservoirPart = mtd_find_partition_by_name(argv[4]);
+	if (pReservoirPart == NULL)
+		return die("Cannot find partition %s", argv[4]);
+	int srcPartStartBlock = atoi(argv[3]);
+	int reservoirPartStartBlock = atoi(argv[5]);
+	const unsigned short* pMapping = CreateBlockMapping(pSrcPart, srcPartStartBlock,
+			pReservoirPart, reservoirPartStartBlock);
 
-    if (pMapping == NULL)
-    	return die("Failed to create block mapping table");
+	if (pMapping == NULL)
+		return die("Failed to create block mapping table");
 
-    if (argc == 6 && strcmp(argv[1],"scan")==0)
+	if (argc == 6 && strcmp(argv[1],"scan")==0)
 	{
 		retVal = scan_partition(pSrcPart);
 	}
 
-    if (strcmp(argv[1],"dump")==0)
-    {
-    	retVal = dump_bml_partition(pSrcPart, pReservoirPart, pMapping, argv[6]);
-    	if (retVal == 0)
-    		printf("Successfully dumped partition to %s\n", argv[6]);
-    }
+	if (strcmp(argv[1],"dump")==0)
+	{
+		retVal = dump_bml_partition(pSrcPart, pReservoirPart, pMapping, argv[6]);
+		if (retVal == 0)
+			printf("Successfully dumped partition to %s\n", argv[6]);
+	}
 
-    if (strcmp(argv[1],"flash")==0)
-    {
-    	retVal = flash_bml_partition(pSrcPart, pReservoirPart, pMapping, argv[6]);
-    	if (retVal == 0)
-    		printf("Successfully wrote %s to partition\n", argv[6]);
+	if (strcmp(argv[1],"flash")==0)
+	{
+		retVal = flash_bml_partition(pSrcPart, pReservoirPart, pMapping, argv[6]);
+		if (retVal == 0)
+			printf("Successfully wrote %s to partition\n", argv[6]);
 
-    }
+	}
 
 
-    ReleaseBlockMapping(pMapping);
-    return retVal;
+	ReleaseBlockMapping(pMapping);
+	return retVal;
 }
