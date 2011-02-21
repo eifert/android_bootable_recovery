@@ -784,6 +784,8 @@ main(int argc, char **argv) {
             return reboot_main(argc, argv);
         if (strstr(argv[0], "setprop"))
             return setprop_main(argc, argv);
+        if (strstr(argv[0], "bml_over_mtd"))
+            return bml_over_mtd_main(argc, argv);
 		return busybox_driver(argc, argv);
 	}
     handle_chargemode();
