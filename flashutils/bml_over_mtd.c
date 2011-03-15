@@ -131,6 +131,8 @@ static int bml_over_mtd_write_close(BmlOverMtdWriteContext *ctx)
 #define BLOCK_SIZE    2048
 #define SPARE_SIZE    (BLOCK_SIZE >> 5)
 
+#define EXIT_CODE_BAD_BLOCKS 15
+
 static int die(const char *msg, ...) {
 	int err = errno;
 	va_list args;
@@ -148,9 +150,30 @@ static int die(const char *msg, ...) {
 	return 1;
 }
 
+static unsigned short* CreateEmptyBlockMapping(const MtdPartition* pSrcPart)
+{
+	size_t srcTotal, srcErase, srcWrite;
+	if (mtd_partition_info(pSrcPart, &srcTotal, &srcErase, &srcWrite) != 0)
+	{
+		fprintf(stderr, "Failed to access partition.\n");
+		return NULL;
+	}
+
+	int numSrcBlocks = srcTotal/srcErase;
+
+	unsigned short* pMapping = malloc(numSrcBlocks * sizeof(unsigned short));
+	if (pMapping == NULL)
+	{
+		fprintf(stderr, "Failed to allocate block mapping memory.\n");
+		return NULL;
+	}
+	memset(pMapping, 0xFF, numSrcBlocks * sizeof(unsigned short));
+	return pMapping;
+}
+
 static const unsigned short* CreateBlockMapping(const MtdPartition* pSrcPart, int srcPartStartBlock,
 		const MtdPartition *pReservoirPart, int reservoirPartStartBlock)
-		{
+{
 	size_t srcTotal, srcErase, srcWrite;
 	if (mtd_partition_info(pSrcPart, &srcTotal, &srcErase, &srcWrite) != 0)
 	{
@@ -722,9 +745,11 @@ int main(int argc, char **argv)
 	if (pSrcPart == NULL)
 		return die("Cannot find partition %s", argv[2]);
 
+	int scanResult = scan_partition(pSrcPart);
+
 	if (argc == 3 && strcmp(argv[1],"scan")==0)
 	{
-		return scan_partition(pSrcPart);
+		return (scanResult == 0 ? 0 : EXIT_CODE_BAD_BLOCKS);
 	}
 
 	int retVal = 0;
@@ -736,13 +761,19 @@ int main(int argc, char **argv)
 	const unsigned short* pMapping = CreateBlockMapping(pSrcPart, srcPartStartBlock,
 			pReservoirPart, reservoirPartStartBlock);
 
-	if (pMapping == NULL)
-		return die("Failed to create block mapping table");
+	if (pMapping == NULL && scanResult == 0)
+	{
+		printf("Generating empty block mapping table for error-free partition.\n");
+		pMapping = CreateEmptyBlockMapping(pSrcPart);
+	}
 
 	if (argc == 6 && strcmp(argv[1],"scan")==0)
 	{
-		retVal = scan_partition(pSrcPart);
+		retVal = (scanResult == 0 ? 0 : EXIT_CODE_BAD_BLOCKS);
 	}
+
+	if (pMapping == NULL)
+		return die("Failed to create block mapping table");
 
 	if (strcmp(argv[1],"dump")==0)
 	{
